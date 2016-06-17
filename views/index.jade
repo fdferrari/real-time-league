@@ -1,0 +1,24 @@
+extends layout
+
+block content
+ h3= title_tabla
+ center
+     div
+      table(class="pure-table" id="table_id")
+        thead
+          tr
+            th(style="display:none") ID
+            th HOME
+            th Result
+            th AWAY
+        tbody
+          each match, index in matches.data
+            tr(style="text-align:center")
+              td(style="display:none") #{match.id}
+              td 
+                img(src="/images/#{match.home}.png", title="home",alt="home")            
+              td(id=match.id) #{match.goal_home} - #{match.goal_away}
+              td
+                img(src="/images/#{match.away}.png",title="away",alt="away")
+                
+ script(type="text/javascript", src="/javascripts/league.controller.js")

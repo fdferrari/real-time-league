@@ -1,0 +1,183 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('real-time-league:server');
+var http = require('http');
+
+var rethinkdb = require('rethinkdb');
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+var io = require('socket.io').listen(server);
+
+/**
+ * Connection Rethinkdb
+ */
+
+var configdb = {
+    host: 'localhost'
+    , port: 28015
+};
+
+var name_database = 'league';
+
+
+
+//function to connect Rethinkdb
+function connect() {
+    var promise = new Promise(
+        function (resolve, reject) {
+            rethinkdb.connect(configdb, function (err, conn) {
+                if (err) reject(err);
+                resolve({
+                    r: rethinkdb
+                    , db: rethinkdb.db(name_database)
+                    , conn: conn
+                });
+            });
+
+        });
+    return promise;
+}
+
+//execute function connect
+connect().then(function (result) {
+        console.log("app >> connection success to Rethinkdb.");
+
+              //store connection data as global variables
+		app.set('r', result.r);
+        app.set('db', result.db);
+        app.set('conn', result.conn);
+
+        //Start monitoring the table matches
+        var db = result.db;
+        var conn = result.conn;
+
+        //Once an event occurs then...
+        db.table("matches")
+            .changes()
+            .run(conn).then(function (cursor) {
+                //for every modified document...
+                cursor.each(function (err, item) {  
+                    if (item && item.new_val) {
+                        //We save the previous and new document
+                        var match_old = item.old_val;
+                        var match_new = item.new_val;
+                        
+                        //Find out who scored a goal
+                        var team_goal = null;
+                        if (match_old.goal_home + 1 === match_new.goal_home) {
+                            team_goal = match_new.home;
+                        } else {
+                            team_goal = match_new.away;
+                        }
+                        //Notifies to the client the event...
+                        io.sockets.emit("goal", {
+                            'match': match_new
+                            , 'team': team_goal
+                        });
+                    }
+                });
+            }) //An error occured while trying to access the table 'matches'
+            .error(function (err) {
+                console.log("An error occured while trying to access the table matches: " + err);
+            });
+    }) //An error occured while trying to connect to the db league
+    .catch(function (err) {
+        console.log("An error occured while trying to connect to the db: " + err);
+    });
+
+/**
+ * Rules socket.io
+ */
+
+io.sockets.on('connection', function (socket) {
+    console.log('user connected: ' + socket.id);
+
+    //When a user connects to the application socket.io notifies to the user that the server is listening
+    socket.emit('connected');
+ 
+});
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}

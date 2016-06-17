@@ -1,0 +1,24 @@
+doctype html
+html
+  head
+    title= title
+    link(rel='stylesheet', href='/stylesheets/font-awesome/css/font-awesome.min.css', type='text/css')
+    link(rel='stylesheet', href='/stylesheets/animate.css',type='text/css')
+    link(rel='stylesheet', href='/stylesheets/buttons.css',type='text/css')
+    link(rel='stylesheet', href='/stylesheets/style.css',type='text/css')    
+    link(rel='stylesheet', href='http://yui.yahooapis.com/pure/0.6.0/pure-min.css',type='text/css')
+    
+    script(type="text/javascript", src="//code.jquery.com/jquery-2.2.3.min.js")
+    script(type="text/javascript", src="//code.jquery.com/ui/1.11.4/jquery-ui.js")
+    script(type="text/javascript", src="/socket.io/socket.io.js")
+    script(type="text/javascript", src="/javascripts/noty/packaged/jquery.noty.packaged.min.js")
+    
+  body
+    header
+      h1= title
+    .container      
+        block content
+      .sidebar
+        block sidebar
+    footer
+      p Copyright © Enjoy! ;)
